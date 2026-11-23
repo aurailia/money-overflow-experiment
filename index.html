@@ -230,6 +230,11 @@ input[type="range"] { width: 100%; accent-color: var(--gold); }
 .play { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; color: var(--ink); text-decoration: none;
   background: radial-gradient(circle at 35% 30%, var(--gold-hi), var(--gold) 55%, var(--gold-lo)); box-shadow: 0 0 0 5px rgba(216, 180, 104, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5); }
 .play svg { margin-left: 3px; }
+.play.playing svg { margin-left: 0; }
+.player { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.pbar { flex: 1; height: 6px; border-radius: 999px; background: rgba(13,7,16,0.7); border: 1px solid var(--line); overflow: hidden; cursor: pointer; }
+.pbar span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--gold-lo), var(--gold-hi)); }
+.ptime { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; min-width: 4ch; }
 
 /* Gem jar */
 .jar-panel { text-align: center; }
@@ -496,16 +501,16 @@ input[type="range"] { width: 100%; accent-color: var(--gold); }
       <p>Put one on before bed or whenever worry tries to creep back in. Use headphones somewhere quiet where you can fully let go, and never while driving.</p>
       <ul class="tracks">
         <li>
-          <a class="play" href="https://www.dropbox.com/scl/fi/acts6jn0i55p431s0ppk4/millionaire-hypnosis.mp3?rlkey=7k2st6lfptdh1dfff3mly7bul&amp;dl=0" target="_blank" rel="noopener" aria-label="Listen to Millionaire Hypnosis"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></a>
-          <div><div class="tt">Millionaire Hypnosis</div><div class="td">Relax into the frequency of the woman who already has it all.</div></div>
+          <a class="play" data-src="https://www.dropbox.com/scl/fi/acts6jn0i55p431s0ppk4/millionaire-hypnosis.mp3?rlkey=7k2st6lfptdh1dfff3mly7bul&amp;raw=1" href="https://www.dropbox.com/scl/fi/acts6jn0i55p431s0ppk4/millionaire-hypnosis.mp3?rlkey=7k2st6lfptdh1dfff3mly7bul&amp;dl=0" target="_blank" rel="noopener" aria-label="Listen to Millionaire Hypnosis"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></a>
+          <div><div class="tt">Millionaire Hypnosis</div><div class="td">Relax into the frequency of the woman who already has it all.</div><div class="player" hidden><div class="pbar"><span></span></div><span class="ptime">0:00</span></div></div>
         </li>
         <li>
-          <a class="play" href="https://www.dropbox.com/scl/fi/po30numxlbvwx83nrvgwg/Money-Magnetism-new.mp3?rlkey=l42q5phlng50kc5uf482uf2f0&amp;dl=0" target="_blank" rel="noopener" aria-label="Listen to Money Magnetism"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></a>
-          <div><div class="tt">Money Magnetism</div><div class="td">Tune into the frequency that draws money to you.</div></div>
+          <a class="play" data-src="https://www.dropbox.com/scl/fi/po30numxlbvwx83nrvgwg/Money-Magnetism-new.mp3?rlkey=l42q5phlng50kc5uf482uf2f0&amp;raw=1" href="https://www.dropbox.com/scl/fi/po30numxlbvwx83nrvgwg/Money-Magnetism-new.mp3?rlkey=l42q5phlng50kc5uf482uf2f0&amp;dl=0" target="_blank" rel="noopener" aria-label="Listen to Money Magnetism"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></a>
+          <div><div class="tt">Money Magnetism</div><div class="td">Tune into the frequency that draws money to you.</div><div class="player" hidden><div class="pbar"><span></span></div><span class="ptime">0:00</span></div></div>
         </li>
         <li>
-          <a class="play" href="https://www.dropbox.com/scl/fi/lm15twgj05iqixbzirpag/energetic-clearing-meditation.mp3?rlkey=l6smrmpznfwjartkpgsxgecue&amp;dl=0" target="_blank" rel="noopener" aria-label="Listen to Energetic Clearing Meditation"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></a>
-          <div><div class="tt">Energetic Clearing Meditation</div><div class="td">Clear out old energy so there's room for more to flow in.</div></div>
+          <a class="play" data-src="https://www.dropbox.com/scl/fi/lm15twgj05iqixbzirpag/energetic-clearing-meditation.mp3?rlkey=l6smrmpznfwjartkpgsxgecue&amp;raw=1" href="https://www.dropbox.com/scl/fi/lm15twgj05iqixbzirpag/energetic-clearing-meditation.mp3?rlkey=l6smrmpznfwjartkpgsxgecue&amp;dl=0" target="_blank" rel="noopener" aria-label="Listen to Energetic Clearing Meditation"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></a>
+          <div><div class="tt">Energetic Clearing Meditation</div><div class="td">Clear out old energy so there's room for more to flow in.</div><div class="player" hidden><div class="pbar"><span></span></div><span class="ptime">0:00</span></div></div>
         </li>
       </ul>
     </div>
@@ -1087,6 +1092,95 @@ function updateLeftHint() {
   } else {
     hint.textContent = "Left to spend: " + money.format(left);
   }
+}
+
+/* ---------- Audio ---------- */
+var curAudio = null;
+var curBtn = null;
+var PLAY_ICON = "M8 5.5v13l11-6.5z";
+var PAUSE_ICON = "M7 5h4v14H7zM13 5h4v14h-4z";
+
+function setIcon(btn, d) {
+  var path = btn.querySelector("path");
+  if (path) { path.setAttribute("d", d); }
+}
+
+function fmtTime(s) {
+  if (!isFinite(s)) { return "0:00"; }
+  var m = Math.floor(s / 60);
+  var x = Math.floor(s % 60);
+  return m + ":" + (x < 10 ? "0" : "") + x;
+}
+
+function onTrackClick(e) {
+  var btn = e.target.closest ? e.target.closest(".play") : null;
+  if (btn) {
+    var src = btn.getAttribute("data-src");
+    if (!src) { return; }
+    e.preventDefault();
+    if (curBtn === btn && curAudio) {
+      if (curAudio.paused) { playAudio(); } else { curAudio.pause(); setIcon(btn, PLAY_ICON); btn.classList.remove("playing"); }
+      return;
+    }
+    stopAudio();
+    curBtn = btn;
+    curAudio = new Audio(src);
+    curAudio.addEventListener("timeupdate", onAudioTime);
+    curAudio.addEventListener("ended", onAudioEnd);
+    curAudio.addEventListener("error", onAudioFail);
+    btn.parentNode.querySelector(".player").hidden = false;
+    playAudio();
+    return;
+  }
+  var bar = e.target.closest ? e.target.closest(".pbar") : null;
+  if (bar && curAudio && curBtn && bar.parentNode.parentNode.parentNode === curBtn.parentNode && curAudio.duration) {
+    var rect = bar.getBoundingClientRect();
+    curAudio.currentTime = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width)) * curAudio.duration;
+  }
+}
+
+function playAudio() {
+  var p = curAudio.play();
+  setIcon(curBtn, PAUSE_ICON);
+  curBtn.classList.add("playing");
+  if (p && p.catch) { p.catch(onAudioFail); }
+}
+
+function onAudioTime() {
+  if (!curAudio || !curBtn) { return; }
+  var li = curBtn.parentNode;
+  var pct = curAudio.duration ? (curAudio.currentTime / curAudio.duration) * 100 : 0;
+  li.querySelector(".pbar span").style.width = pct.toFixed(1) + "%";
+  li.querySelector(".ptime").textContent = fmtTime(curAudio.currentTime);
+}
+
+function onAudioEnd() { if (curBtn) { setIcon(curBtn, PLAY_ICON); curBtn.classList.remove("playing"); } }
+
+function onAudioFail() {
+  if (!curBtn) { return; }
+  var href = curBtn.getAttribute("href");
+  var li = curBtn.parentNode;
+  setIcon(curBtn, PLAY_ICON);
+  curBtn.classList.remove("playing");
+  var pl = li.querySelector(".player");
+  clear(pl);
+  var a = el("a", null, "Tap here to listen in Dropbox");
+  a.href = href;
+  a.target = "_blank";
+  a.rel = "noopener";
+  a.style.color = "var(--gold-hi)";
+  a.style.fontSize = "14px";
+  pl.appendChild(a);
+  curBtn.removeAttribute("data-src");
+  curAudio = null;
+  curBtn = null;
+}
+
+function stopAudio() {
+  if (curAudio) { curAudio.pause(); }
+  if (curBtn) { setIcon(curBtn, PLAY_ICON); curBtn.classList.remove("playing"); }
+  curAudio = null;
+  curBtn = null;
 }
 
 function goSpend() {
@@ -1766,6 +1860,7 @@ function init() {
   $("spendAllBtn").addEventListener("click", fillAll);
   $("txList").addEventListener("click", onListClick);
   $("recBtn").addEventListener("click", logReceived);
+  document.querySelector(".tracks").addEventListener("click", onTrackClick);
   $("celDone").addEventListener("click", closeCelebrate);
   $("celCopy").addEventListener("click", copyMantra);
   $("moveBtn").addEventListener("click", toggleMove);
