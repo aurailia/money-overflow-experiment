@@ -1,0 +1,1819 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The Money Overflow Experiment</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;0,600;1,400;1,500&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  /* Layout idea: a private-bank lounge at midnight. Plum-black velvet, champagne gold, one hot pink spark. */
+  --ink: #0d0710;
+  --velvet: #1c0f22;
+  --plum: #2b1633;
+  --amethyst: #8a6aae;
+  --lavender: #d6c4ec;
+  --gold: #d8b468;
+  --gold-hi: #f4e2ad;
+  --gold-lo: #9c7a36;
+  --pink: #e2589c;
+  --text: #f5eff8;
+  --muted: #b9a9c7;
+  --line: rgba(216, 180, 104, 0.28);
+  --display: "Cormorant Garamond", "Cormorant", Garamond, "Times New Roman", serif;
+  --body: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  /* Swap in your own luxe background image here, e.g. url("your-image.jpg") */
+  --bg-image: none;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; padding: 0; }
+body {
+  background-color: var(--ink);
+  background-image:
+    var(--bg-image),
+    radial-gradient(1200px 700px at 85% -10%, rgba(138, 106, 174, 0.28), transparent 60%),
+    radial-gradient(900px 600px at -10% 30%, rgba(216, 180, 104, 0.12), transparent 60%),
+    radial-gradient(800px 800px at 50% 120%, rgba(226, 88, 156, 0.10), transparent 60%),
+    linear-gradient(180deg, #120a17 0%, #0d0710 100%);
+  background-size: cover, auto, auto, auto, auto;
+  background-attachment: fixed;
+  color: var(--text);
+  font-family: var(--body);
+  font-weight: 400;
+  line-height: 1.6;
+  min-height: 100%;
+}
+#dust { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+.wrap { position: relative; z-index: 1; max-width: 880px; margin: 0 auto; padding: 32px 20px 80px; }
+
+/* Header */
+.top { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.brand { font-size: 12px; letter-spacing: 0.32em; text-transform: uppercase; color: var(--gold); }
+.topdates { display: block; margin-top: 4px; letter-spacing: 0.22em; color: var(--lavender); }
+.mute { background: transparent; border: 1px solid var(--line); color: var(--muted); border-radius: 999px; padding: 6px 14px; font: 500 12px var(--body); letter-spacing: 0.08em; cursor: pointer; }
+.mute:hover { color: var(--gold-hi); border-color: var(--gold); }
+.hero { text-align: center; padding: 24px 0 18px; }
+.hero h1 { font-family: var(--display); font-weight: 500; font-size: clamp(40px, 7vw, 68px); line-height: 1.02; margin: 0; text-wrap: balance;
+  background: linear-gradient(100deg, var(--gold-lo) 0%, var(--gold-hi) 35%, var(--gold) 55%, var(--gold-hi) 75%, var(--gold-lo) 100%);
+  -webkit-background-clip: text; background-clip: text; color: transparent; }
+.hero .dates { margin-top: 14px; font-family: var(--display); font-style: italic; font-size: 20px; color: var(--lavender); }
+.ornament { display: flex; align-items: center; justify-content: center; gap: 14px; color: var(--gold); margin-top: 18px; font-size: 14px; }
+.ornament::before, .ornament::after { content: ""; width: 70px; height: 1px; background: linear-gradient(90deg, transparent, var(--gold)); }
+.ornament::after { transform: scaleX(-1); }
+
+/* Tabs */
+.tabs { display: flex; justify-content: center; gap: 8px; margin: 4px 0 20px; flex-wrap: wrap; }
+.tab { background: rgba(43, 22, 51, 0.6); border: 1px solid var(--line); color: var(--muted); padding: 10px 22px; border-radius: 999px; font: 500 14px var(--body); letter-spacing: 0.04em; cursor: pointer; transition: all 0.2s; }
+.tab:hover { color: var(--text); border-color: var(--gold); }
+.tab[aria-selected="true"] { background: linear-gradient(135deg, var(--gold-hi), var(--gold) 50%, var(--gold-lo)); color: var(--ink); border-color: transparent; }
+.view { display: none; }
+.view.on { display: grid; gap: 22px; }
+.view > * { min-width: 0; }
+
+/* Panels */
+.panel { background: linear-gradient(160deg, rgba(43, 22, 51, 0.78), rgba(22, 12, 28, 0.86)); border: 1px solid var(--line); border-radius: 20px; padding: 28px; backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.eyebrow { font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); margin: 0 0 8px; }
+.panel h2 { font-family: var(--display); font-weight: 500; font-size: 32px; line-height: 1.15; margin: 0 0 12px; color: var(--text); text-wrap: balance; }
+.panel p { margin: 0 0 12px; color: #e6dcec; max-width: 65ch; }
+.panel p:last-child { margin-bottom: 0; }
+
+/* Forms */
+.fields { display: grid; gap: 16px; grid-template-columns: 1fr 1fr; }
+.field { display: grid; gap: 6px; }
+.field.full { grid-column: 1 / -1; }
+label { font-size: 13px; color: var(--muted); letter-spacing: 0.02em; }
+input[type="text"], input[type="number"], select, textarea {
+  width: 100%; background: rgba(13, 7, 16, 0.65); border: 1px solid rgba(216, 180, 104, 0.25); color: var(--text);
+  border-radius: 12px; padding: 12px 14px; font: 400 15px var(--body); }
+textarea { min-height: 90px; resize: vertical; }
+input:focus, select:focus, textarea:focus, button:focus-visible { outline: 2px solid var(--gold); outline-offset: 2px; }
+input[type="range"] { width: 100%; accent-color: var(--gold); }
+.label-row { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
+.left-hint { font-size: 13px; color: var(--gold-hi); font-variant-numeric: tabular-nums; }
+.left-hint.over { color: var(--pink); }
+.range-row { display: flex; align-items: center; gap: 14px; }
+.range-val { font-family: var(--display); font-size: 34px; color: var(--gold-hi); min-width: 2ch; text-align: center; font-variant-numeric: tabular-nums; }
+.zeros { margin-top: 4px; font-size: 14px; color: var(--muted); }
+.zeros strong { font-family: var(--display); font-size: 22px; font-weight: 500; color: var(--gold-hi); letter-spacing: 0.01em; }
+
+.btn { border: 0; cursor: pointer; border-radius: 999px; padding: 13px 26px; font: 600 14px var(--body); letter-spacing: 0.06em; transition: transform 0.15s, box-shadow 0.2s; }
+.btn:active { transform: scale(0.98); }
+.btn-gold { background: linear-gradient(135deg, var(--gold-hi), var(--gold) 50%, var(--gold-lo)); color: var(--ink); box-shadow: 0 6px 24px rgba(216, 180, 104, 0.25); }
+.btn-gold:hover { box-shadow: 0 8px 32px rgba(216, 180, 104, 0.45); }
+.btn-ghost { background: transparent; color: var(--lavender); border: 1px solid rgba(214, 196, 236, 0.35); }
+.btn-ghost:hover { border-color: var(--lavender); color: var(--text); }
+.btn-pink { background: var(--pink); color: #fff; }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; box-shadow: none; }
+.row { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 18px; }
+.note { font-size: 13px; color: var(--muted); }
+.saved { font-size: 13px; color: var(--gold); }
+
+.scale-ends { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--muted); }
+.feel-line { margin: 6px 0 0; font-family: var(--display); font-style: italic; font-size: 20px; color: var(--gold-hi); }
+
+/* Sealed envelope */
+.sealed { display: grid; gap: 10px; justify-items: center; text-align: center; padding: 18px 0 6px; }
+.seal { width: 74px; height: 74px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-size: 30px; color: var(--ink);
+  background: radial-gradient(circle at 35% 30%, var(--gold-hi), var(--gold) 55%, var(--gold-lo)); box-shadow: 0 0 0 6px rgba(216, 180, 104, 0.12), 0 10px 30px rgba(0, 0, 0, 0.5); }
+.sealed h3 { font-family: var(--display); font-weight: 500; font-size: 26px; margin: 4px 0 0; }
+
+/* Mantra */
+.mantra { text-align: center; padding: 38px 28px; }
+.mantra .lines { font-family: var(--display); font-style: italic; font-size: clamp(24px, 4vw, 32px); line-height: 1.45; color: var(--gold-hi); margin: 8px 0 14px; }
+.mantra.heavy .lines { color: var(--lavender); font-size: clamp(20px, 3.4vw, 26px); }
+.mantra .by { font-size: 13px; color: var(--muted); letter-spacing: 0.08em; }
+
+/* Rules */
+.rules { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 14px; counter-reset: r; }
+.rules li { counter-increment: r; display: grid; grid-template-columns: 44px 1fr; gap: 14px; align-items: start; color: #e6dcec; }
+.rules li::before { content: counter(r); font-family: var(--display); font-size: 26px; color: var(--gold); line-height: 1; text-align: center; padding-top: 2px; border-right: 1px solid var(--line); }
+
+/* Bank card */
+.card { position: relative; overflow: hidden; border-radius: 24px; padding: 28px 30px; min-height: 230px;
+  background: linear-gradient(135deg, #2c1636 0%, #1a0d20 45%, #2a1430 100%);
+  border: 1px solid rgba(244, 226, 173, 0.45); box-shadow: 0 30px 60px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(244, 226, 173, 0.25); }
+.card::before { content: ""; position: absolute; inset: -40%; background: linear-gradient(115deg, transparent 40%, rgba(244, 226, 173, 0.12) 50%, transparent 60%); animation: shine 7s ease-in-out infinite; }
+@keyframes shine { 0% { transform: translateX(-30%); } 50% { transform: translateX(30%); } 100% { transform: translateX(-30%); } }
+.card > * { position: relative; }
+.card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.bank-name { font-family: var(--display); font-size: 22px; letter-spacing: 0.06em; color: var(--gold-hi); }
+.bank-sub { font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase; color: var(--muted); }
+.chip { width: 46px; height: 34px; border-radius: 7px; background: linear-gradient(135deg, var(--gold-hi), var(--gold) 50%, var(--gold-lo)); position: relative; }
+.chip::after { content: ""; position: absolute; inset: 8px 6px; border: 1px solid rgba(13, 7, 16, 0.35); border-radius: 3px; }
+.bal-label { margin-top: 26px; font-size: 12px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--muted); }
+.balance { font-family: var(--display); font-weight: 500; font-size: clamp(44px, 8vw, 64px); line-height: 1.05; color: var(--text); font-variant-numeric: tabular-nums; }
+.next-dep { margin-top: 6px; font-size: 13px; letter-spacing: 0.06em; color: var(--gold-hi); }
+.next-dep strong { font-family: var(--display); font-size: 20px; font-weight: 500; letter-spacing: 0; }
+.deposit .amt { display: none; }
+.card-bottom { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-top: 18px; flex-wrap: wrap; }
+.holder { font-size: 13px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--lavender); }
+.acct { font-size: 13px; letter-spacing: 0.2em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.daypill { display: inline-block; padding: 5px 12px; border-radius: 999px; border: 1px solid var(--gold); color: var(--gold-hi); font-size: 12px; letter-spacing: 0.12em; text-transform: uppercase; }
+
+/* Day strip */
+.days-panel { padding: 20px 22px; }
+.days-head { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.days-head .eyebrow { margin: 0; }
+.days { display: flex; gap: 10px; overflow-x: auto; padding: 12px 2px 6px; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; }
+.dchip { flex: 0 0 auto; scroll-snap-align: center; min-width: 86px; text-align: center; border-radius: 14px; padding: 10px 12px; cursor: pointer;
+  background: rgba(13, 7, 16, 0.55); border: 1px solid rgba(216, 180, 104, 0.22); color: var(--muted); font: 500 12px var(--body); line-height: 1.35; }
+.dchip .dn { display: block; font-family: var(--display); font-size: 20px; color: var(--text); }
+.dchip .dd { display: block; }
+.dchip .ds { display: block; margin-top: 3px; font-size: 11px; letter-spacing: 0.04em; }
+.dchip.waiting .ds { color: var(--pink); }
+.dchip.done .ds { color: var(--gold); }
+.dchip.today { border-color: var(--gold); }
+.dchip[aria-selected="true"] { background: linear-gradient(135deg, var(--gold-hi), var(--gold) 50%, var(--gold-lo)); border-color: transparent; color: var(--ink); }
+.dchip[aria-selected="true"] .dn, .dchip[aria-selected="true"] .ds { color: var(--ink); }
+.dchip.locked { opacity: 0.45; cursor: default; }
+.dchip.passed { opacity: 0.6; }
+
+/* Deposit banner */
+.deposit { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap;
+  border: 1px solid var(--gold); background: linear-gradient(120deg, rgba(216, 180, 104, 0.18), rgba(43, 22, 51, 0.6)); }
+.deposit .amt { font-family: var(--display); font-size: 40px; color: var(--gold-hi); line-height: 1.1; font-variant-numeric: tabular-nums; }
+.deposit.done { border-color: var(--line); background: linear-gradient(160deg, rgba(43, 22, 51, 0.78), rgba(22, 12, 28, 0.86)); }
+.pulse { animation: pulse 2.2s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { box-shadow: 0 6px 24px rgba(216, 180, 104, 0.25); } 50% { box-shadow: 0 6px 40px rgba(244, 226, 173, 0.6); } }
+
+/* Stats */
+.stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.stat { background: rgba(13, 7, 16, 0.5); border: 1px solid var(--line); border-radius: 16px; padding: 16px; }
+.stat .k { font-size: 11px; letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); }
+.stat .v { font-family: var(--display); font-size: 28px; color: var(--text); font-variant-numeric: tabular-nums; line-height: 1.2; margin-top: 4px; }
+.stat .v.gold { color: var(--gold-hi); }
+.progress { margin-top: 18px; }
+.bar { height: 10px; border-radius: 999px; background: rgba(13, 7, 16, 0.7); border: 1px solid var(--line); overflow: hidden; }
+.bar > span { display: block; height: 100%; width: 0; background: linear-gradient(90deg, var(--gold-lo), var(--gold-hi)); border-radius: 999px; transition: width 0.8s ease; }
+.bar-meta { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 6px; font-variant-numeric: tabular-nums; gap: 8px; flex-wrap: wrap; }
+
+/* Transactions */
+.tx-list { list-style: none; margin: 0; padding: 0; display: grid; }
+.tx { display: grid; grid-template-columns: 40px 1fr auto auto; gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid rgba(216, 180, 104, 0.12); }
+.tx:last-child { border-bottom: 0; }
+.tx .ic { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-family: var(--display); font-size: 20px; }
+.tx.in .ic { background: radial-gradient(circle at 35% 30%, var(--gold-hi), var(--gold) 60%, var(--gold-lo)); color: var(--ink); }
+.tx.out .ic { background: rgba(138, 106, 174, 0.25); color: var(--lavender); border: 1px solid rgba(214, 196, 236, 0.3); }
+.tx .d { font-size: 15px; color: var(--text); overflow-wrap: anywhere; }
+.tx .m { font-size: 12px; color: var(--muted); }
+.tx .a { font-family: var(--display); font-size: 22px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tx.in .a { color: var(--gold-hi); }
+.tx.out .a { color: var(--text); }
+.tx .del { background: transparent; border: 0; color: var(--muted); cursor: pointer; font-size: 18px; padding: 4px 6px; border-radius: 6px; }
+.tx .del:hover { color: var(--pink); }
+.tx .del.confirming { color: var(--pink); font-size: 12px; font-weight: 600; letter-spacing: 0.04em; }
+.empty { color: var(--muted); font-style: italic; font-family: var(--display); font-size: 20px; padding: 10px 0; }
+
+/* Return moment */
+.veil { position: fixed; inset: 0; z-index: 30; display: grid; place-items: center; padding: 20px; background: rgba(8, 4, 10, 0.72); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
+.ret { width: min(100%, 460px); text-align: center; border-radius: 24px; padding: 34px 28px 28px; border: 1px solid var(--gold);
+  background: radial-gradient(500px 260px at 50% -10%, rgba(216, 180, 104, 0.22), transparent 70%), linear-gradient(160deg, #2c1636, #160b1b);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.7); animation: rise 0.45s ease-out; }
+@keyframes rise { from { transform: translateY(18px) scale(0.97); opacity: 0; } to { transform: none; opacity: 1; } }
+.ret .spent { color: var(--muted); font-size: 14px; margin: 0 0 4px; overflow-wrap: anywhere; }
+.ret .spent strong { color: var(--text); font-weight: 500; }
+.ret .back-label { margin-top: 20px; font-size: 11px; letter-spacing: 0.3em; text-transform: uppercase; color: var(--gold); }
+.ret .back { font-family: var(--display); font-weight: 500; font-size: clamp(44px, 11vw, 60px); line-height: 1.1; color: var(--gold-hi); font-variant-numeric: tabular-nums; }
+.ret .times { display: inline-block; margin-top: 6px; padding: 4px 12px; border-radius: 999px; border: 1px solid var(--line); font-size: 12px; color: var(--lavender); letter-spacing: 0.08em; }
+.ret .say { font-family: var(--display); font-style: italic; font-size: 24px; line-height: 1.35; color: var(--text); margin: 22px 0 6px; text-wrap: balance; }
+.ret .hint { font-size: 13px; color: var(--muted); margin: 0 0 20px; }
+
+/* Listen */
+.tracks { list-style: none; margin: 14px 0 0; padding: 0; display: grid; gap: 12px; }
+.tracks li { display: grid; grid-template-columns: 52px 1fr; gap: 16px; align-items: center; padding: 12px; border-radius: 16px; background: rgba(13, 7, 16, 0.5); border: 1px solid var(--line); }
+.tracks .tt { font-family: var(--display); font-size: 22px; color: var(--text); line-height: 1.2; }
+.tracks .td { font-size: 14px; color: var(--muted); }
+.play { width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; color: var(--ink); text-decoration: none;
+  background: radial-gradient(circle at 35% 30%, var(--gold-hi), var(--gold) 55%, var(--gold-lo)); box-shadow: 0 0 0 5px rgba(216, 180, 104, 0.12), 0 8px 24px rgba(0, 0, 0, 0.5); }
+.play svg { margin-left: 3px; }
+
+/* Gem jar */
+.jar-panel { text-align: center; }
+.jar-panel h2 { margin-bottom: 4px; }
+.jar-stage { display: flex; justify-content: center; padding: 18px 0 6px; }
+.jar-wrap { position: relative; width: 230px; height: 330px; }
+.jar-lid { position: absolute; left: 50%; top: 0; transform: translateX(-50%); width: 132px; height: 22px; border-radius: 8px;
+  background: linear-gradient(180deg, var(--gold-hi), var(--gold) 55%, var(--gold-lo)); box-shadow: 0 4px 12px rgba(0,0,0,0.4); z-index: 3; }
+.jar-neck { position: absolute; left: 50%; top: 20px; transform: translateX(-50%); width: 118px; height: 26px; border: 2px solid rgba(244, 226, 173, 0.45); border-bottom: 0;
+  border-radius: 6px 6px 0 0; background: rgba(214, 196, 236, 0.05); z-index: 2; }
+.jar { position: absolute; left: 0; right: 0; top: 44px; bottom: 0; border: 2px solid rgba(244, 226, 173, 0.5); border-radius: 46px 46px 56px 56px; overflow: hidden;
+  background: linear-gradient(100deg, rgba(255,255,255,0.08) 0%, rgba(255,255,255,0.02) 18%, rgba(214,196,236,0.05) 60%, rgba(255,255,255,0.10) 92%);
+  box-shadow: inset 0 -20px 40px rgba(216, 180, 104, 0.08), 0 20px 40px rgba(0,0,0,0.45); }
+.jar::after { content: ""; position: absolute; left: 18px; top: 22px; width: 14px; height: 60%; border-radius: 10px; background: linear-gradient(180deg, rgba(255,255,255,0.22), rgba(255,255,255,0)); }
+.gem { position: absolute; width: 20px; height: 20px; transform: rotate(45deg); border-radius: 3px;
+  box-shadow: inset -2px -2px 3px rgba(0,0,0,0.35), inset 2px 2px 3px rgba(255,255,255,0.55), 0 0 6px rgba(255,255,255,0.15); }
+.gem.drop { animation: gemdrop 0.9s cubic-bezier(.3,1.3,.5,1) both; }
+@keyframes gemdrop { 0% { transform: translateY(-320px) rotate(-90deg); opacity: 0; } 60% { opacity: 1; } 100% { transform: translateY(0) rotate(45deg); opacity: 1; } }
+.gem.spill { z-index: 4; }
+.legend { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 14px; font-size: 12px; color: var(--muted); }
+.legend li { display: inline-flex; align-items: center; gap: 6px; }
+.legend .gem { position: static; width: 10px; height: 10px; flex: 0 0 auto; }
+
+/* Celebration */
+.cel { max-height: calc(100vh - 40px); overflow-y: auto; }
+.cel-title { font-family: var(--display); font-weight: 500; font-size: 34px; margin: 0 0 6px; color: var(--gold-hi); }
+.cel-card { display: block; width: 100%; max-width: 340px; margin: 14px auto 12px; border-radius: 16px; border: 1px solid var(--line); box-shadow: 0 16px 40px rgba(0,0,0,0.5); -webkit-touch-callout: default; }
+.cel-label { display: block; text-align: left; margin-top: 4px; }
+.cel-post { margin-top: 6px; min-height: 130px; font-size: 14px; line-height: 1.5; text-align: left; }
+.move textarea { min-height: 70px; font-size: 12px; word-break: break-all; }
+
+/* Confetti */
+.confetti { position: fixed; top: -20px; z-index: 40; pointer-events: none; border-radius: 2px; animation: fall linear forwards; }
+@keyframes fall { 0% { transform: translate(0, 0) rotate(0deg); opacity: 1; } 85% { opacity: 1; } 100% { transform: translate(var(--drift), 105vh) rotate(var(--spin)); opacity: 0; } }
+
+/* Toast and burst */
+.toast { position: fixed; left: 50%; bottom: 28px; transform: translate(-50%, 30px); opacity: 0; z-index: 20; max-width: min(92vw, 520px);
+  background: linear-gradient(135deg, #2c1636, #1a0d20); border: 1px solid var(--gold); color: var(--text); padding: 16px 20px; border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6); transition: all 0.35s ease; text-align: center; pointer-events: none; }
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast .big { font-family: var(--display); font-size: 24px; color: var(--gold-hi); display: block; line-height: 1.2; }
+.coin { position: fixed; z-index: 15; width: 14px; height: 14px; border-radius: 50%; pointer-events: none;
+  background: radial-gradient(circle at 35% 30%, var(--gold-hi), var(--gold) 60%, var(--gold-lo)); animation: fly 1.3s ease-out forwards; }
+@keyframes fly { 0% { transform: translate(0, 0) scale(1); opacity: 1; } 100% { transform: translate(var(--dx), var(--dy)) scale(0.4); opacity: 0; } }
+
+.signoff { text-align: center; font-family: var(--display); font-style: italic; font-size: 22px; color: var(--lavender); padding: 24px 0 0; }
+.signoff span { color: var(--gold); font-style: normal; }
+.foot { display: flex; justify-content: center; gap: 10px; flex-wrap: wrap; margin-top: 30px; }
+
+@media (max-width: 640px) {
+  .fields { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: 1fr; }
+  .panel { padding: 22px; }
+  .card { padding: 22px; }
+  .tx { grid-template-columns: 34px 1fr auto 22px; gap: 10px; }
+  .tx .ic { width: 34px; height: 34px; font-size: 17px; }
+  .tx .a { font-size: 19px; }
+  .tx .del { padding: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card::before, .pulse { animation: none; }
+  .coin, .confetti { display: none; }
+  .gem.drop { animation: none; }
+  .ret { animation: none; }
+  .bar > span, .toast { transition: none; }
+}
+</style>
+</head>
+<body>
+<canvas id="dust" aria-hidden="true"></canvas>
+<div class="wrap">
+
+  <div class="top">
+    <div class="brand">Embody Wealth <span class="topdates">Living in overflow until December 31st</span></div>
+    <button class="mute" id="muteBtn" type="button" aria-pressed="false">Sound on</button>
+  </div>
+
+  <header class="hero">
+    <h1>The Money Overflow Experiment</h1>
+    <div class="ornament">✦</div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Sections">
+    <button class="tab" role="tab" id="tab-start" data-view="start" type="button">Start Here</button>
+    <button class="tab" role="tab" id="tab-account" data-view="account" type="button">Overflow Account</button>
+    <button class="tab" role="tab" id="tab-log" data-view="log" type="button">Receiving Log</button>
+  </nav>
+
+  <!-- START HERE -->
+  <section class="view" id="view-start" role="tabpanel" aria-labelledby="tab-start">
+
+    <div class="panel">
+      <p class="eyebrow">Welcome in</p>
+      <h2>From now until the end of the year, you live in overflow.</h2>
+      <p>From now until the end of the year, you walk in the shoes of the woman who already has more than enough. She's always taken care of. She doesn't complain about money and she doesn't look at her bank account with fear. She just lives in overflow, every single day.</p>
+      <p>I played this game when I had $100 in my account. I decided that for one month I'd stop worrying, stop complaining, and live like I already had more than enough. That month $8,000 came into my account as a gift I never saw coming. It came because I made a decision and I held it, no matter what was going on around me.</p>
+      <p>This is your decision. Let's make it real.</p>
+    </div>
+
+    <div class="panel">
+      <p class="eyebrow">Step one</p>
+      <h2>Your details</h2>
+      <div class="fields">
+        <div class="field">
+          <label for="inName">Your first name</label>
+          <input type="text" id="inName" maxlength="40" autocomplete="given-name" placeholder="Your name">
+        </div>
+        <div class="field">
+          <label for="inNumber">Dream big. If you could have any amount sitting in your account right now, how much would it be?</label>
+          <input type="number" id="inNumber" min="0" step="1" inputmode="numeric" placeholder="250000">
+          <div class="zeros">Your dream balance: <strong id="zerosOut">$0</strong></div>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn btn-gold" id="saveDetails" type="button">Save my details</button>
+        <span class="saved" id="detailsSaved" aria-live="polite"></span>
+      </div>
+    </div>
+
+    <div class="panel" id="baselinePanel">
+      <p class="eyebrow">Step two</p>
+      <h2>Your starting point</h2>
+      <div id="baselineForm">
+        <p>Be honest here. Nobody sees this but you. Once you seal it, it stays closed until December 31st, and then you open it and see how far you've come and see how far you've come.</p>
+        <div class="fields">
+          <div class="field full">
+            <label for="inFeel">How wealthy do you feel right now?</label>
+            <div class="range-row">
+              <input type="range" id="inFeel" min="1" max="10" step="1" value="5">
+              <span class="range-val" id="feelOut">5</span>
+            </div>
+            <div class="scale-ends"><span>1 · Money feels tight and scary</span><span>10 · Total overflow</span></div>
+            <p class="feel-line" id="feelLine">Some days I feel abundant, and some days I don't.</p>
+          </div>
+          <div class="field full">
+            <label for="inWorry">Your biggest money worry right now</label>
+            <textarea id="inWorry" maxlength="600" placeholder="Write it down so you can let it go."></textarea>
+          </div>
+        </div>
+        <div class="row" id="sealRow">
+          <button class="btn btn-gold" id="sealBtn" type="button">Seal my starting point</button>
+        </div>
+        <div class="row" id="sealConfirm" hidden>
+          <span class="note">Once it's sealed, you can't open it until December 31st. Ready?</span>
+          <button class="btn btn-pink" id="sealYes" type="button">Yes, seal it</button>
+          <button class="btn btn-ghost" id="sealNo" type="button">Not yet</button>
+        </div>
+      </div>
+      <div class="sealed" id="sealedView" hidden>
+        <div class="seal">✦</div>
+        <h3>Sealed</h3>
+        <p class="note" id="sealedNote">Your starting point is sealed until December 31st.</p>
+      </div>
+    </div>
+
+    <div class="panel mantra">
+      <p class="eyebrow">Our overflow mantra</p>
+      <div class="lines">I am the woman who already has more than enough.<br>Money feels good in my hands,<br>and it always comes back to me multiplied.</div>
+      <div class="by">Say it every day, every time you check your account and every time you spend.</div>
+    </div>
+
+    <div class="panel mantra heavy">
+      <p class="eyebrow">When it feels heavy</p>
+      <div class="lines">All is well.<br>Everything is working out for my highest good.<br>Out of this situation only good will come.<br>I am safe. I am safe. I am safe.</div>
+      <div class="by">Louise Hay · For the moments when worry creeps in</div>
+    </div>
+
+    <div class="panel">
+      <p class="eyebrow">How we live</p>
+      <h2>The rules</h2>
+      <ol class="rules">
+        <li>No complaining about money, out loud or in your head. When you catch yourself, take a breath and come back to your When It Feels Heavy mantra.</li>
+        <li>When you want the upgrade, take it as of course. We're adults and we're responsible, so nobody's going into debt or buying a Ferrari. It's about the feeling of saying yes to yourself.</li>
+        <li>Hold your dream balance in your mind and imagine it's already sitting in your account.</li>
+        <li>Every time you look at your bank account, see it doubled.</li>
+        <li>Every time you spend money, get excited, because it's coming back to you multiplied.</li>
+        <li>Loosen your grip on where money comes from. It can show up any way it wants to, so keep building your business from that overflow and let it surprise you.</li>
+      </ol>
+      <div class="row">
+        <button class="btn btn-gold" id="goAccount" type="button">Open my Overflow Account</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- OVERFLOW ACCOUNT -->
+  <section class="view" id="view-account" role="tabpanel" aria-labelledby="tab-account">
+
+    <div class="card" id="bankCard">
+      <div class="card-top">
+        <div>
+          <div class="bank-name">The Overflow Private Bank</div>
+          <div class="bank-sub">Est. by the Universe</div>
+        </div>
+        <div class="chip" aria-hidden="true"></div>
+      </div>
+      <div class="bal-label" id="balLabel">Left to spend today</div>
+      <div class="balance" id="balanceOut">$0.00</div>
+      <div class="next-dep" id="nextOut"></div>
+      <div class="card-bottom">
+        <div>
+          <div class="holder" id="holderOut">Account holder</div>
+          <div class="acct">•••• •••• •••• 0111</div>
+        </div>
+        <span class="daypill" id="dayPill">Day 1</span>
+      </div>
+    </div>
+
+    <div class="panel deposit" id="depositPanel">
+      <div>
+        <p class="eyebrow" id="depositEyebrow">Incoming deposit</p>
+        <div class="amt" id="depositAmt">$1,000.00</div>
+        <div class="note" id="depositNote">From: The Universe</div>
+      </div>
+      <button class="btn btn-gold pulse" id="claimBtn" type="button">Receive my deposit</button>
+    </div>
+
+    <div class="panel" id="spendPanel">
+      <p class="eyebrow">The rule of the game</p>
+      <h2>Spend it all, every day.</h2>
+      <p>Every day a bigger deposit lands, and every day you spend all of it on whatever you want. Each deposit is only for its own day, and you have to spend every bit of it before the next one can land. Really let yourself feel it. When it starts to get hard to spend, pay attention, because that's your money ceiling showing you where it sits.</p>
+      <div class="fields" style="margin-top:16px">
+        <div class="field full">
+          <label for="spendDesc">What are you buying?</label>
+          <input type="text" id="spendDesc" maxlength="120" placeholder="A silk robe, first class to Bali, a week at a spa...">
+        </div>
+        <div class="field">
+          <div class="label-row"><label for="spendAmt">How much?</label><span class="left-hint" id="leftHint">Left to spend: $0.00</span></div>
+          <input type="number" id="spendAmt" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label for="spendCat">Category</label>
+          <select id="spendCat">
+            <option>For me</option>
+            <option>Home</option>
+            <option>Travel</option>
+            <option>Style</option>
+            <option>Gifts and giving</option>
+            <option>Business</option>
+            <option>Experiences</option>
+            <option>Investments</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn btn-gold" id="spendBtn" type="button">Spend it</button>
+        <button class="btn btn-ghost" id="spendAllBtn" type="button">Fill in my full balance</button>
+        <span class="note" id="spendMsg" aria-live="polite"></span>
+      </div>
+    </div>
+
+    <div class="panel">
+      <p class="eyebrow">Your overflow so far</p>
+      <div class="stats">
+        <div class="stat"><div class="k">Received</div><div class="v gold" id="statIn">$0</div></div>
+        <div class="stat"><div class="k">Spent</div><div class="v" id="statOut">$0</div></div>
+        <div class="stat"><div class="k">Coming back to you</div><div class="v gold" id="statBack">$0</div></div>
+      </div>
+      <div class="bar-meta"><span id="barLeft">$0 spent</span></div>
+    </div>
+
+    <div class="panel">
+      <p class="eyebrow">Listen</p>
+      <h2>Your overflow audios</h2>
+      <p>Put one on before bed or whenever worry tries to creep back in. Use headphones somewhere quiet where you can fully let go, and never while driving.</p>
+      <ul class="tracks">
+        <li>
+          <a class="play" href="https://www.dropbox.com/scl/fi/acts6jn0i55p431s0ppk4/millionaire-hypnosis.mp3?rlkey=7k2st6lfptdh1dfff3mly7bul&amp;dl=0" target="_blank" rel="noopener" aria-label="Listen to Millionaire Hypnosis"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></a>
+          <div><div class="tt">Millionaire Hypnosis</div><div class="td">Relax into the frequency of the woman who already has it all.</div></div>
+        </li>
+        <li>
+          <a class="play" href="https://www.dropbox.com/scl/fi/po30numxlbvwx83nrvgwg/Money-Magnetism-new.mp3?rlkey=l42q5phlng50kc5uf482uf2f0&amp;dl=0" target="_blank" rel="noopener" aria-label="Listen to Money Magnetism"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></a>
+          <div><div class="tt">Money Magnetism</div><div class="td">Tune into the frequency that draws money to you.</div></div>
+        </li>
+        <li>
+          <a class="play" href="https://www.dropbox.com/scl/fi/lm15twgj05iqixbzirpag/energetic-clearing-meditation.mp3?rlkey=l6smrmpznfwjartkpgsxgecue&amp;dl=0" target="_blank" rel="noopener" aria-label="Listen to Energetic Clearing Meditation"><svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="M8 5.5v13l11-6.5z" fill="currentColor"/></svg></a>
+          <div><div class="tt">Energetic Clearing Meditation</div><div class="td">Clear out old energy so there's room for more to flow in.</div></div>
+        </li>
+      </ul>
+    </div>
+
+    <div class="panel">
+      <p class="eyebrow">Statement</p>
+      <h2 id="stmtTitle">Day 1</h2>
+      <ul class="tx-list" id="txList"></ul>
+      <div class="row" id="moreRow" hidden>
+        <button class="btn btn-ghost" id="moreBtn" type="button">Show all activity</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- RECEIVING LOG -->
+  <section class="view" id="view-log" role="tabpanel" aria-labelledby="tab-log">
+
+    <div class="panel">
+      <p class="eyebrow">Receiving Log</p>
+      <h2>Notice everything that comes in.</h2>
+      <p>Every dollar counts, and so does every bit of value. The free coffee, the discount, the gift, the refund, the client payment, the compliment that made your day. The more you notice money showing up, the more it shows up.</p>
+      <div class="fields" style="margin-top:16px">
+        <div class="field full">
+          <label for="recDesc">What came in?</label>
+          <input type="text" id="recDesc" maxlength="140" placeholder="My friend paid for lunch, a client booked, 20% off my order...">
+        </div>
+        <div class="field">
+          <label for="recAmt">What's it worth? (optional)</label>
+          <input type="number" id="recAmt" min="0" step="0.01" inputmode="decimal" placeholder="0.00">
+        </div>
+        <div class="field">
+          <label for="recType">What kind?</label>
+          <select id="recType">
+            <option>Money</option>
+            <option>Client payment</option>
+            <option>Gift</option>
+            <option>Discount or deal</option>
+            <option>Something free</option>
+            <option>Refund</option>
+            <option>Opportunity</option>
+            <option>Something else</option>
+          </select>
+        </div>
+      </div>
+      <div class="row">
+        <button class="btn btn-gold" id="recBtn" type="button">Log it ✦</button>
+        <span class="note" id="recMsg" aria-live="polite"></span>
+      </div>
+    </div>
+
+    <div class="panel jar-panel">
+      <p class="eyebrow">Your overflow jar</p>
+      <h2 id="jarTitle">Every gem is something you received.</h2>
+      <div class="jar-stage">
+        <div class="jar-wrap" id="jarWrap">
+          <div class="jar-lid" aria-hidden="true"></div>
+          <div class="jar-neck" aria-hidden="true"></div>
+          <div class="jar" id="jar" role="img" aria-label="Your overflow jar"></div>
+        </div>
+      </div>
+      <ul class="legend" id="gemLegend"></ul>
+    </div>
+
+    <div class="panel">
+      <p class="eyebrow">Look what's coming in</p>
+      <div class="stats">
+        <div class="stat"><div class="k">Total received</div><div class="v gold" id="recTotal">$0</div></div>
+        <div class="stat"><div class="k">Times you received</div><div class="v" id="recCount">0</div></div>
+        <div class="stat"><div class="k">This week</div><div class="v gold" id="recWeek">$0</div></div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <p class="eyebrow">Your log</p>
+      <h2>Everything that found you</h2>
+      <ul class="tx-list" id="recList"></ul>
+    </div>
+  </section>
+
+  <div class="signoff">I believe in you. To living our dreams. <span>Aurailia ✦</span></div>
+
+  <div class="panel move" id="movePanel" hidden>
+    <p class="eyebrow">Move to another device</p>
+    <h2>Take your overflow with you</h2>
+    <p>Your entries save on this device only. To use another phone or computer, copy your backup code here, then paste it into the Overflow Account on your other device.</p>
+    <div class="field" style="margin-top:14px">
+      <label for="backupOut">Your backup code</label>
+      <textarea id="backupOut" readonly></textarea>
+    </div>
+    <div class="row">
+      <button class="btn btn-gold" id="copyBackup" type="button">Copy my code</button>
+      <span class="saved" id="copyMsg" aria-live="polite"></span>
+    </div>
+    <div class="field" style="margin-top:22px">
+      <label for="backupIn">Paste a code from your other device</label>
+      <textarea id="backupIn" placeholder="Paste your backup code here"></textarea>
+    </div>
+    <div class="row" id="restoreRow">
+      <button class="btn btn-ghost" id="restoreBtn" type="button">Bring my overflow here</button>
+      <span class="note" id="restoreMsg" aria-live="polite"></span>
+    </div>
+    <div class="row" id="restoreConfirm" hidden>
+      <span class="note">This replaces everything on this device with your backup. Ready?</span>
+      <button class="btn btn-pink" id="restoreYes" type="button">Yes, bring it over</button>
+      <button class="btn btn-ghost" id="restoreNo" type="button">Not yet</button>
+    </div>
+  </div>
+
+  <div class="foot">
+    <button class="btn btn-ghost" id="moveBtn" type="button">Move to another device</button>
+    <button class="btn btn-ghost" id="resetBtn" type="button">Start over</button>
+    <span id="resetConfirm" hidden>
+      <span class="note">This clears everything on this device. Sure?</span>
+      <button class="btn btn-pink" id="resetYes" type="button">Yes, clear it</button>
+      <button class="btn btn-ghost" id="resetNo" type="button">Keep it</button>
+    </span>
+  </div>
+</div>
+
+<div class="veil" id="celVeil" hidden>
+  <div class="ret cel" role="dialog" aria-modal="true" aria-labelledby="celTitle">
+    <p class="eyebrow">You did it</p>
+    <h2 class="cel-title" id="celTitle">Day 1 all spent ✦</h2>
+    <p class="spent" id="celSub">Every bit of it. That's the woman who lives in overflow.</p>
+    <img class="cel-card" id="celImg" alt="Your overflow card for today">
+    <p class="hint" id="celHint">Press and hold the card to save it to your phone (on a computer, right-click and choose Save image). Then copy your post below and share both in the community.</p>
+    <label for="celPost" class="cel-label">Your post, ready to share</label>
+    <textarea id="celPost" class="cel-post" readonly></textarea>
+    <div class="row" style="justify-content:center">
+      <button class="btn btn-ghost" id="celCopy" type="button">Copy my post</button>
+      <button class="btn btn-gold" id="celDone" type="button">I am her ✦</button>
+    </div>
+    <p class="saved" id="celMsg" aria-live="polite"></p>
+  </div>
+</div>
+
+<div class="veil" id="retVeil" hidden>
+  <div class="ret" role="dialog" aria-modal="true" aria-labelledby="retBack">
+    <p class="eyebrow">Money well spent</p>
+    <p class="spent">You spent <strong id="retAmt">$0</strong> on <strong id="retDesc">something lovely</strong></p>
+    <div class="back-label">Coming back to you</div>
+    <div class="back" id="retBack">$0</div>
+    <span class="times">Your spend, multiplied</span>
+    <p class="say" id="retSay">Thank you, money. Come back to me multiplied.</p>
+    <p class="hint">Say it out loud, then tap below.</p>
+    <button class="btn btn-gold" id="retBtn" type="button">Thank you, money ✦</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+var LEGACY_START = "2026-11-23";
+var STORE_KEY = "moneyOverflowExperiment.v1";
+var SHOW_LIMIT = 25;
+
+var state = loadState();
+var audioCtx = null;
+var showAll = false;
+var confirmingDelete = null;
+var toastTimer = null;
+var animFrom = 0;
+var animTo = 0;
+var animStart = 0;
+var dustParts = [];
+var dustCtx = null;
+var reduceMotion = false;
+
+var money = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" });
+var moneyRound = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 });
+
+function defaultState() {
+  return { name: "", number: "", baseline: null, start: "", claimed: [], tx: [], rec: [], muted: false };
+}
+
+function loadState() {
+  var s = defaultState();
+  try {
+    var raw = window.localStorage.getItem(STORE_KEY);
+    if (raw) {
+      var parsed = JSON.parse(raw);
+      if (parsed && typeof parsed === "object") {
+        s.name = parsed.name || "";
+        s.number = parsed.number || "";
+        s.baseline = parsed.baseline || null;
+        s.claimed = Array.isArray(parsed.claimed) ? parsed.claimed : [];
+        s.tx = Array.isArray(parsed.tx) ? parsed.tx : [];
+        s.muted = !!parsed.muted;
+        s.rec = Array.isArray(parsed.rec) ? parsed.rec : [];
+        s.start = parsed.start || (s.claimed.length ? LEGACY_START : "");
+      }
+    }
+  } catch (e) {}
+  return s;
+}
+
+function saveState() {
+  try { window.localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) {}
+}
+
+function $(id) { return document.getElementById(id); }
+
+function el(tag, cls, text) {
+  var n = document.createElement(tag);
+  if (cls) { n.className = cls; }
+  if (text !== undefined && text !== null) { n.textContent = text; }
+  return n;
+}
+
+function clear(node) { while (node.firstChild) { node.removeChild(node.firstChild); } }
+
+function midnight(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+
+function dateKey(d) {
+  var m = d.getMonth() + 1;
+  var day = d.getDate();
+  return d.getFullYear() + "-" + (m < 10 ? "0" : "") + m + "-" + (day < 10 ? "0" : "") + day;
+}
+
+function longDate(d) { return d.toLocaleDateString("en-US", { month: "long", day: "numeric" }); }
+
+function shortDate(d) { return d.toLocaleDateString("en-US", { month: "short", day: "numeric" }); }
+
+function totals() {
+  var inSum = 0;
+  var outSum = 0;
+  var i;
+  for (i = 0; i < state.tx.length; i++) {
+    if (state.tx[i].type === "deposit") { inSum += state.tx[i].amount; } else { outSum += state.tx[i].amount; }
+  }
+  return { received: inSum, spent: outSum, balance: Math.max(0, Math.round((inSum - outSum) * 100) / 100) };
+}
+
+
+/* ---------- Sound ---------- */
+function getAudio() {
+  if (!audioCtx) {
+    var Ctor = window.AudioContext || window.webkitAudioContext;
+    if (!Ctor) { return null; }
+    audioCtx = new Ctor();
+  }
+  if (audioCtx.state === "suspended") { audioCtx.resume(); }
+  return audioCtx;
+}
+
+function tone(ctx, freq, start, dur, vol, type) {
+  var o = ctx.createOscillator();
+  var g = ctx.createGain();
+  o.type = type || "sine";
+  o.frequency.setValueAtTime(freq, start);
+  g.gain.setValueAtTime(0.0001, start);
+  g.gain.exponentialRampToValueAtTime(vol, start + 0.008);
+  g.gain.exponentialRampToValueAtTime(0.0001, start + dur);
+  o.connect(g);
+  g.connect(ctx.destination);
+  o.start(start);
+  o.stop(start + dur + 0.05);
+}
+
+function noiseBurst(ctx, start, dur, vol) {
+  var len = Math.floor(ctx.sampleRate * dur);
+  var buf = ctx.createBuffer(1, len, ctx.sampleRate);
+  var data = buf.getChannelData(0);
+  var i;
+  for (i = 0; i < len; i++) { data[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / len, 2); }
+  var src = ctx.createBufferSource();
+  src.buffer = buf;
+  var f = ctx.createBiquadFilter();
+  f.type = "bandpass";
+  f.frequency.value = 2600;
+  f.Q.value = 0.9;
+  var g = ctx.createGain();
+  g.gain.value = vol;
+  src.connect(f);
+  f.connect(g);
+  g.connect(ctx.destination);
+  src.start(start);
+}
+
+function playChaChing() {
+  if (state.muted) { return; }
+  try {
+    var ctx = getAudio();
+    if (!ctx) { return; }
+    var t = ctx.currentTime + 0.02;
+    noiseBurst(ctx, t, 0.07, 0.5);
+    noiseBurst(ctx, t + 0.09, 0.05, 0.35);
+    var bell = t + 0.17;
+    tone(ctx, 2093, bell, 1.4, 0.22, "sine");
+    tone(ctx, 2637, bell, 1.2, 0.16, "sine");
+    tone(ctx, 3136, bell, 1.0, 0.11, "sine");
+    tone(ctx, 4186, bell, 0.8, 0.07, "sine");
+    tone(ctx, 5274, bell + 0.01, 0.5, 0.04, "triangle");
+  } catch (e) {}
+}
+
+function playCoin() {
+  if (state.muted) { return; }
+  try {
+    var ctx = getAudio();
+    if (!ctx) { return; }
+    var t = ctx.currentTime + 0.02;
+    tone(ctx, 1976, t, 0.35, 0.16, "sine");
+    tone(ctx, 2637, t + 0.08, 0.6, 0.14, "sine");
+    tone(ctx, 3951, t + 0.08, 0.4, 0.05, "triangle");
+  } catch (e) {}
+}
+
+/* ---------- Visual flourishes ---------- */
+function coinBurst(anchor) {
+  if (reduceMotion || !anchor) { return; }
+  var r = anchor.getBoundingClientRect();
+  var cx = r.left + r.width / 2;
+  var cy = r.top + r.height / 2;
+  var i;
+  for (i = 0; i < 26; i++) {
+    var c = el("span", "coin");
+    var ang = Math.random() * Math.PI * 2;
+    var dist = 80 + Math.random() * 160;
+    c.style.left = cx + "px";
+    c.style.top = cy + "px";
+    c.style.setProperty("--dx", Math.cos(ang) * dist + "px");
+    c.style.setProperty("--dy", (Math.sin(ang) * dist - 60) + "px");
+    c.style.animationDelay = (Math.random() * 0.15) + "s";
+    document.body.appendChild(c);
+    window.setTimeout(removeNode, 1600, c);
+  }
+}
+
+function removeNode(n) { if (n && n.parentNode) { n.parentNode.removeChild(n); } }
+
+function showToast(big, small) {
+  var t = $("toast");
+  clear(t);
+  t.appendChild(el("span", "big", big));
+  if (small) { t.appendChild(el("span", null, small)); }
+  t.classList.add("show");
+  if (toastTimer) { window.clearTimeout(toastTimer); }
+  toastTimer = window.setTimeout(hideToast, 3800);
+}
+
+function hideToast() { $("toast").classList.remove("show"); }
+
+function animateBalance(from, to) {
+  if (reduceMotion) { $("balanceOut").textContent = money.format(to); return; }
+  animFrom = from;
+  animTo = to;
+  animStart = 0;
+  window.requestAnimationFrame(stepBalance);
+}
+
+function stepBalance(ts) {
+  if (!animStart) { animStart = ts; }
+  var p = Math.min(1, (ts - animStart) / 1100);
+  var eased = 1 - Math.pow(1 - p, 3);
+  $("balanceOut").textContent = money.format(animFrom + (animTo - animFrom) * eased);
+  if (p < 1) { window.requestAnimationFrame(stepBalance); }
+}
+
+function initDust() {
+  var cv = $("dust");
+  if (!cv.getContext || reduceMotion) { return; }
+  dustCtx = cv.getContext("2d");
+  sizeDust();
+  var i;
+  for (i = 0; i < 55; i++) {
+    dustParts.push({ x: Math.random(), y: Math.random(), r: Math.random() * 1.6 + 0.3, s: Math.random() * 0.00025 + 0.00006, a: Math.random() * Math.PI * 2 });
+  }
+  window.addEventListener("resize", sizeDust);
+  window.requestAnimationFrame(drawDust);
+}
+
+function sizeDust() {
+  var cv = $("dust");
+  var dpr = window.devicePixelRatio || 1;
+  cv.width = window.innerWidth * dpr;
+  cv.height = window.innerHeight * dpr;
+  if (dustCtx) { dustCtx.setTransform(dpr, 0, 0, dpr, 0, 0); }
+}
+
+function drawDust() {
+  var w = window.innerWidth;
+  var h = window.innerHeight;
+  var i;
+  dustCtx.clearRect(0, 0, w, h);
+  for (i = 0; i < dustParts.length; i++) {
+    var p = dustParts[i];
+    p.y -= p.s;
+    p.a += 0.01;
+    if (p.y < -0.02) { p.y = 1.02; p.x = Math.random(); }
+    var glow = 0.35 + Math.sin(p.a) * 0.3;
+    dustCtx.beginPath();
+    dustCtx.fillStyle = "rgba(244, 226, 173, " + glow.toFixed(3) + ")";
+    dustCtx.arc(p.x * w, p.y * h, p.r, 0, Math.PI * 2);
+    dustCtx.fill();
+  }
+  window.requestAnimationFrame(drawDust);
+}
+
+/* ---------- Views ---------- */
+function showView(name) {
+  if (name !== "start" && name !== "account" && name !== "log") { name = "start"; }
+  var tabs = document.querySelectorAll(".tab");
+  var i;
+  for (i = 0; i < tabs.length; i++) {
+    tabs[i].setAttribute("aria-selected", tabs[i].getAttribute("data-view") === name ? "true" : "false");
+  }
+  $("view-start").classList.toggle("on", name === "start");
+  $("view-account").classList.toggle("on", name === "account");
+  $("view-log").classList.toggle("on", name === "log");
+}
+
+function onHash() { showView((location.hash || "#start").slice(1)); }
+
+function onTabClick(e) {
+  var v = e.currentTarget.getAttribute("data-view");
+  if (location.hash !== "#" + v) { location.hash = v; } else { showView(v); }
+  window.scrollTo(0, 0);
+}
+
+function goAccount() { location.hash = "account"; window.scrollTo(0, 0); }
+
+/* ---------- Start Here ---------- */
+function renderDetails() {
+  $("inName").value = state.name;
+  $("inNumber").value = state.number;
+  updateZeros();
+}
+
+function updateZeros() {
+  var n = parseFloat($("inNumber").value);
+  $("zerosOut").textContent = isNaN(n) ? "$0" : moneyRound.format(n);
+}
+
+function saveDetails() {
+  state.name = $("inName").value.trim();
+  state.number = $("inNumber").value.trim();
+  saveState();
+  $("detailsSaved").textContent = "Saved. She's here.";
+  renderAccount();
+}
+
+function renderBaseline() {
+  var sealed = !!state.baseline;
+  $("baselineForm").hidden = sealed;
+  $("sealedView").hidden = !sealed;
+  if (sealed) {
+    var d = new Date(state.baseline.sealedAt);
+    $("sealedNote").textContent = "Sealed on " + d.toLocaleDateString("en-US", { month: "long", day: "numeric" }) + ". It opens on December 31st, and you'll see how far you've come.";
+  }
+}
+
+function askSeal() { $("sealRow").hidden = true; $("sealConfirm").hidden = false; }
+function cancelSeal() { $("sealRow").hidden = false; $("sealConfirm").hidden = true; }
+
+function doSeal() {
+  state.baseline = {
+    feel: parseInt($("inFeel").value, 10),
+    number: state.number || $("inNumber").value.trim(),
+    worry: $("inWorry").value.trim(),
+    sealedAt: new Date().toISOString()
+  };
+  saveState();
+  cancelSeal();
+  renderBaseline();
+  playCoin();
+  showToast("Sealed ✦", "See you on December 31st.");
+}
+
+/* ---------- Account ---------- */
+var selectedDay = 1;
+var claimSpend = false;
+var pendingCelebrate = 0;
+
+function dayDeposit(d) { return state.claimed.indexOf(d) === -1 ? 0 : d * 1000; }
+
+function daySpent(d) {
+  var s = 0;
+  var i;
+  for (i = 0; i < state.tx.length; i++) {
+    if (state.tx[i].type === "spend" && state.tx[i].day === d) { s += state.tx[i].amount; }
+  }
+  return Math.round(s * 100) / 100;
+}
+
+function dayLeft(d) { return Math.max(0, Math.round((dayDeposit(d) - daySpent(d)) * 100) / 100); }
+
+/* The day she's on = how many deposits she has received. */
+function currentNum() {
+  var n = 0;
+  var i;
+  for (i = 0; i < state.claimed.length; i++) { if (state.claimed[i] > n) { n = state.claimed[i]; } }
+  return n;
+}
+
+function receivedOn(d) {
+  var i;
+  for (i = 0; i < state.tx.length; i++) {
+    if (state.tx[i].type === "deposit" && state.tx[i].day === d) { return dateKey(new Date(state.tx[i].ts)); }
+  }
+  return "";
+}
+
+/* What happens next: "first", "spend", "ready", "wait" or "done". */
+function accountStage() {
+  var n = currentNum();
+  if (n === 0) { return "first"; }
+  if (dayLeft(n) > 0) { return "spend"; }
+  if (dateKey(new Date()) > receivedOn(n)) { return "ready"; }
+  return "wait";
+}
+
+function nextNum() { var n = currentNum(); return n === 0 ? 1 : n + 1; }
+
+function renderAccount() {
+  var t = totals();
+  var stage = accountStage();
+  var n = currentNum();
+  selectedDay = n === 0 ? 1 : n;
+  $("balanceOut").textContent = money.format(dayLeft(selectedDay));
+  $("balLabel").textContent = "Left to spend today";
+  $("holderOut").textContent = state.name ? state.name : "Account holder";
+  $("dayPill").textContent = "Day " + (stage === "ready" || stage === "first" ? nextNum() : n);
+  renderDeposit();
+  $("statIn").textContent = moneyRound.format(t.received);
+  $("statOut").textContent = moneyRound.format(t.spent);
+  $("statBack").textContent = moneyRound.format(t.spent * 2);
+  $("barLeft").textContent = moneyRound.format(t.spent) + " spent";
+  renderTx();
+  updateLeftHint();
+}
+
+function renderDeposit() {
+  var stage = accountStage();
+  var n = currentNum();
+  var btn = $("claimBtn");
+  var out = $("nextOut");
+  clear(out);
+  claimSpend = false;
+  btn.classList.add("pulse");
+  $("depositPanel").hidden = false;
+  if (stage === "first" || stage === "ready") {
+    var k = nextNum();
+    out.appendChild(document.createTextNode("Day " + k + " deposit is ready: "));
+    out.appendChild(el("strong", null, moneyRound.format(k * 1000)));
+    $("depositEyebrow").textContent = "Your Day " + k + " deposit is here";
+    $("depositNote").textContent = "From: The Universe. Receive it, then spend every bit of it.";
+    btn.textContent = "Receive my deposit";
+  } else if (stage === "spend") {
+    out.appendChild(document.createTextNode("Spend it all to unlock your next deposit: "));
+    out.appendChild(el("strong", null, moneyRound.format((n + 1) * 1000)));
+    claimSpend = true;
+    $("depositEyebrow").textContent = "You still have " + money.format(dayLeft(n)) + " to spend";
+    $("depositNote").textContent = "Spend every bit of it, and your next deposit lands after midnight.";
+    btn.textContent = "Go spend it ✦";
+  } else if (stage === "wait") {
+    out.appendChild(document.createTextNode("Next deposit after midnight: "));
+    out.appendChild(el("strong", null, moneyRound.format((n + 1) * 1000)));
+    $("depositPanel").hidden = true;
+  } else {
+    out.appendChild(document.createTextNode("Every deposit received ✦"));
+    $("depositPanel").hidden = true;
+  }
+}
+
+function updateLeftHint() {
+  var left = dayLeft(currentNum());
+  var typed = parseFloat($("spendAmt").value);
+  var hint = $("leftHint");
+  hint.classList.remove("over");
+  if (!isNaN(typed) && typed > 0) {
+    var after = Math.round((left - typed) * 100) / 100;
+    if (after < 0) {
+      hint.classList.add("over");
+      hint.textContent = "Only " + money.format(left) + " left";
+    } else {
+      hint.textContent = "Left: " + money.format(left) + " · After: " + money.format(after);
+    }
+  } else {
+    hint.textContent = "Left to spend: " + money.format(left);
+  }
+}
+
+function goSpend() {
+  var target = $("spendPanel");
+  target.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  window.setTimeout(focusSpend, reduceMotion ? 0 : 550);
+}
+
+function focusSpend() {
+  try { $("spendDesc").focus({ preventScroll: true }); } catch (e) { $("spendDesc").focus(); }
+}
+
+function claimDeposits() {
+  if (claimSpend) { goSpend(); return; }
+  var stage = accountStage();
+  if (stage !== "first" && stage !== "ready") { return; }
+  var d = nextNum();
+  if (!state.start) { state.start = dateKey(midnight(new Date())); }
+  state.claimed.push(d);
+  state.tx.push({ id: "d" + d + "-" + Date.now(), type: "deposit", day: d, amount: d * 1000, desc: "Deposit from The Universe", cat: "Day " + d, ts: Date.now() });
+  saveState();
+  playChaChing();
+  coinBurst($("bankCard"));
+  renderAccount();
+  animateBalance(0, dayLeft(d));
+  showToast("+" + money.format(d * 1000), "The Universe just made your Day " + d + " deposit. Now go spend it.");
+}
+
+function fillAll() {
+  var b = dayLeft(currentNum());
+  $("spendAmt").value = b > 0 ? b.toFixed(2) : "";
+  updateLeftHint();
+  $("spendAmt").focus();
+}
+
+function spend() {
+  var d = currentNum();
+  var desc = $("spendDesc").value.trim();
+  var amt = Math.round(parseFloat($("spendAmt").value) * 100) / 100;
+  var bal = dayLeft(d);
+  var msg = $("spendMsg");
+  if (!desc) { msg.textContent = "Tell me what you're buying first."; $("spendDesc").focus(); return; }
+  if (isNaN(amt) || amt <= 0) { msg.textContent = "Add how much it costs."; $("spendAmt").focus(); return; }
+  if (d === 0) { msg.textContent = "Receive your first deposit first. It's waiting at the top."; return; }
+  if (bal <= 0) { msg.textContent = "You've spent every bit of today's. Your next deposit lands after midnight."; return; }
+  if (amt > bal) { msg.textContent = "You have " + money.format(bal) + " left to spend. Tap Fill in my full balance."; return; }
+  state.tx.push({ id: "s" + Date.now(), type: "spend", day: d, amount: amt, desc: desc, cat: $("spendCat").value, ts: Date.now() });
+  saveState();
+  $("spendDesc").value = "";
+  $("spendAmt").value = "";
+  msg.textContent = "";
+  playCoin();
+  renderAccount();
+  animateBalance(bal, dayLeft(d));
+  if (dayLeft(d) <= 0) { pendingCelebrate = d; }
+  openReturn(desc, amt);
+}
+
+var RETURN_LINES = [
+  "Thank you, money. Come back to me multiplied.",
+  "That felt so good, and it's already on its way back to me.",
+  "There's always more where that came from.",
+  "Money loves the way I spend it.",
+  "I spend with joy and it finds its way home to me.",
+  "Everything I give out comes back to me, and then some.",
+  "I'm allowed to enjoy my money.",
+  "Money flows to me easily, and it flows right back.",
+  "I spend like a woman who knows more is coming.",
+  "Every dollar I spend is a thank you to the Universe.",
+  "My account keeps growing, even when I spend.",
+  "I love money, and money loves me back.",
+  "This is what overflow feels like.",
+  "I'm safe to spend, and I'm safe to receive.",
+  "The more I enjoy my money, the more it comes.",
+  "I deserve beautiful things, and they keep finding me.",
+  "Money is always circulating back to me.",
+  "I trust the flow. It always brings more.",
+  "Look at me, living in overflow.",
+  "I'm the woman who always has more than enough.",
+  "Money comes to me in expected and unexpected ways.",
+  "Spending this feels good, and receiving feels even better."
+];
+var retFrom = 0;
+var retTo = 0;
+var retStart = 0;
+var lastFocus = null;
+var lastLine = -1;
+
+function openReturn(desc, amt) {
+  lastFocus = document.activeElement;
+  $("retAmt").textContent = money.format(amt);
+  $("retDesc").textContent = desc;
+  var pick = Math.floor(Math.random() * RETURN_LINES.length);
+  if (pick === lastLine) { pick = (pick + 1) % RETURN_LINES.length; }
+  lastLine = pick;
+  $("retSay").textContent = RETURN_LINES[pick];
+  $("retVeil").hidden = false;
+  $("retBtn").focus();
+  retFrom = amt;
+  retTo = amt * 2;
+  retStart = 0;
+  if (reduceMotion) { $("retBack").textContent = moneyRound.format(retTo); }
+  else { $("retBack").textContent = moneyRound.format(retFrom); window.requestAnimationFrame(stepReturn); }
+  window.setTimeout(playShimmer, 350);
+}
+
+function stepReturn(ts) {
+  if (!retStart) { retStart = ts; }
+  var p = Math.min(1, (ts - retStart) / 1400);
+  var eased = 1 - Math.pow(1 - p, 3);
+  $("retBack").textContent = moneyRound.format(retFrom + (retTo - retFrom) * eased);
+  if (p < 1) { window.requestAnimationFrame(stepReturn); }
+}
+
+function playShimmer() {
+  if (state.muted) { return; }
+  try {
+    var ctx = getAudio();
+    if (!ctx) { return; }
+    var t = ctx.currentTime + 0.02;
+    var notes = [1568, 1976, 2349, 3136, 3951];
+    var i;
+    for (i = 0; i < notes.length; i++) { tone(ctx, notes[i], t + i * 0.09, 0.9, 0.09, "sine"); }
+  } catch (e) {}
+}
+
+function closeReturn() {
+  $("retVeil").hidden = true;
+  playChaChing();
+  coinBurst($("bankCard"));
+  if (lastFocus && lastFocus.focus) { try { lastFocus.focus({ preventScroll: true }); } catch (e) { lastFocus.focus(); } }
+  if (pendingCelebrate) {
+    var done = pendingCelebrate;
+    pendingCelebrate = 0;
+    window.setTimeout(celebrateDay, 450, done);
+  }
+}
+
+var CONFETTI_COLORS = ["#f4e2ad", "#d8b468", "#9c7a36", "#d6c4ec", "#8a6aae", "#e2589c", "#ffffff"];
+
+var HIGHEST_SELF = [
+  "I am the woman money loves to find.",
+  "I spend with joy, and I receive with ease.",
+  "My highest self never worries about money. She knows more is always coming.",
+  "I am already living the life I asked for.",
+  "Money moves through me with ease, and it always comes home.",
+  "I feel wealthy in my body, and my bank account is catching up.",
+  "Every day I become more of the woman who has it all.",
+  "I spend from overflow, because overflow is who I am.",
+  "I am safe with money, and money is safe with me.",
+  "Abundance is my natural state, and I live there now.",
+  "I am open to receiving more than I ever imagined.",
+  "Wealth looks good on me, and I wear it with ease.",
+  "I am the energy money is drawn to.",
+  "There is always more for me, and it is already on its way.",
+  "I give myself permission to have it all.",
+  "My worth is not up for debate. I am worthy of overflow.",
+  "I let money love me back.",
+  "I am becoming the woman I used to dream about.",
+  "My business overflows because I overflow.",
+  "I trust myself with more money than I have ever held.",
+  "I am rich in every way that matters, and my bank account knows it.",
+  "Every yes to myself opens the door to more.",
+  "I am magnetic to money and beautiful opportunities.",
+  "I live like she does, because I am her.",
+  "Money is my friend, and we are so good together.",
+  "I receive with an open heart and open hands.",
+  "I am safe to want more, and safe to have more.",
+  "The Universe is always conspiring in my favor.",
+  "I choose overflow, today and every day.",
+  "I am the woman who never has to worry about money again."
+];
+var celMantra = "";
+
+function celebrateDay(d) {
+  confetti();
+  playShimmer();
+  celMantra = HIGHEST_SELF[Math.floor(Math.random() * HIGHEST_SELF.length)];
+  $("celTitle").textContent = "Day " + d + " all spent ✦";
+  $("celSub").textContent = "You spent all " + moneyRound.format(d * 1000) + ". Your Day " + (d + 1) + " deposit of " + moneyRound.format((d + 1) * 1000) + " lands after midnight.";
+  $("celMsg").textContent = "";
+  $("celPost").value = "Day " + d + " all spent ✦\n\nI just spent " + moneyRound.format(d * 1000) + " from overflow in The Money Overflow Experiment, and it's coming back to me multiplied.\n\nMy highest self says: \u201C" + celMantra + "\u201D\n\nI am the woman who already has more than enough. ✨";
+  $("celImg").removeAttribute("src");
+  $("celVeil").hidden = false;
+  $("celDone").focus();
+  drawCardWhenReady(d);
+}
+
+function drawCardWhenReady(d) {
+  if (document.fonts && document.fonts.ready) {
+    document.fonts.ready.then(function () { drawCard(d); }, function () { drawCard(d); });
+  } else {
+    drawCard(d);
+  }
+}
+
+function wrapLines(ctx, text, maxW) {
+  var words = text.split(" ");
+  var lines = [];
+  var line = "";
+  var i;
+  for (i = 0; i < words.length; i++) {
+    var test = line ? line + " " + words[i] : words[i];
+    if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = words[i]; } else { line = test; }
+  }
+  if (line) { lines.push(line); }
+  return lines;
+}
+
+function drawCard(d) {
+  var W = 1080;
+  var H = 1350;
+  var cv = document.createElement("canvas");
+  cv.width = W;
+  cv.height = H;
+  var ctx = cv.getContext("2d");
+  var bg = ctx.createLinearGradient(0, 0, W, H);
+  bg.addColorStop(0, "#2c1636");
+  bg.addColorStop(0.5, "#160b1b");
+  bg.addColorStop(1, "#2a1430");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, W, H);
+  var glow = ctx.createRadialGradient(W / 2, 0, 50, W / 2, 0, 900);
+  glow.addColorStop(0, "rgba(216,180,104,0.28)");
+  glow.addColorStop(1, "rgba(216,180,104,0)");
+  ctx.fillStyle = glow;
+  ctx.fillRect(0, 0, W, H);
+  var i;
+  for (i = 0; i < 90; i++) {
+    ctx.fillStyle = "rgba(244,226,173," + (Math.random() * 0.5 + 0.1).toFixed(2) + ")";
+    ctx.beginPath();
+    ctx.arc(Math.random() * W, Math.random() * H, Math.random() * 2.2 + 0.4, 0, Math.PI * 2);
+    ctx.fill();
+  }
+  ctx.strokeStyle = "rgba(244,226,173,0.6)";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(44, 44, W - 88, H - 88);
+  ctx.strokeStyle = "rgba(244,226,173,0.25)";
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(62, 62, W - 124, H - 124);
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#d8b468";
+  ctx.font = "500 30px Inter, sans-serif";
+  ctx.fillText("THE  MONEY  OVERFLOW  EXPERIMENT", W / 2, 180);
+  var gold = ctx.createLinearGradient(200, 0, W - 200, 0);
+  gold.addColorStop(0, "#9c7a36");
+  gold.addColorStop(0.4, "#f4e2ad");
+  gold.addColorStop(0.6, "#d8b468");
+  gold.addColorStop(1, "#9c7a36");
+  ctx.fillStyle = gold;
+  ctx.font = "500 130px 'Cormorant Garamond', Garamond, serif";
+  ctx.fillText("Day " + d, W / 2, 360);
+  ctx.font = "italic 500 62px 'Cormorant Garamond', Garamond, serif";
+  ctx.fillText("all spent ✦", W / 2, 440);
+  ctx.fillStyle = "#f5eff8";
+  ctx.font = "400 40px Inter, sans-serif";
+  ctx.fillText(moneyRound.format(d * 1000) + " spent from overflow", W / 2, 540);
+  ctx.fillStyle = "#d8b468";
+  ctx.font = "400 44px 'Cormorant Garamond', serif";
+  ctx.fillText("✦", W / 2, 640);
+  ctx.fillStyle = "#f4e2ad";
+  ctx.font = "italic 500 64px 'Cormorant Garamond', Garamond, serif";
+  var lines = wrapLines(ctx, "\u201C" + celMantra + "\u201D", W - 260);
+  var y = 750;
+  for (i = 0; i < lines.length; i++) { ctx.fillText(lines[i], W / 2, y); y += 82; }
+  ctx.fillStyle = "#d6c4ec";
+  ctx.font = "400 34px Inter, sans-serif";
+  ctx.fillText(state.name ? state.name.toUpperCase() + "  ✦  EMBODY WEALTH" : "EMBODY WEALTH", W / 2, H - 150);
+  try { $("celImg").src = cv.toDataURL("image/png"); } catch (e) { $("celHint").textContent = "Take a screenshot of this moment and share it in the community."; }
+}
+
+function closeCelebrate() {
+  $("celVeil").hidden = true;
+  $("bankCard").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+}
+
+function copyMantra() {
+  var msg = $("celMsg");
+  var text = $("celPost").value;
+  try {
+    navigator.clipboard.writeText(text).then(function () { msg.textContent = "Copied ✦ Now paste it in the community with your card."; }, function () { selectPost(); });
+  } catch (e) { selectPost(); }
+}
+
+function selectPost() {
+  $("celPost").focus();
+  $("celPost").select();
+  $("celMsg").textContent = "Your post is selected. Copy it from here.";
+}
+
+/* ---------- Move to another device ---------- */
+var BACKUP_PREFIX = "MOE1:";
+
+function makeBackup() {
+  try { return BACKUP_PREFIX + btoa(unescape(encodeURIComponent(JSON.stringify(state)))); } catch (e) { return ""; }
+}
+
+function toggleMove() {
+  var p = $("movePanel");
+  p.hidden = !p.hidden;
+  if (!p.hidden) {
+    $("backupOut").value = makeBackup();
+    $("copyMsg").textContent = "";
+    $("restoreMsg").textContent = "";
+    p.scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  }
+}
+
+function copyBackup() {
+  var code = $("backupOut").value;
+  var msg = $("copyMsg");
+  try {
+    navigator.clipboard.writeText(code).then(function () { msg.textContent = "Copied ✦ Now paste it on your other device."; }, function () { selectBackup(); });
+  } catch (e) { selectBackup(); }
+}
+
+function selectBackup() {
+  $("backupOut").focus();
+  $("backupOut").select();
+  $("copyMsg").textContent = "Your code is selected. Copy it from here.";
+}
+
+function parseBackup(code) {
+  code = (code || "").replace(/\s+/g, "");
+  if (code.indexOf(BACKUP_PREFIX) !== 0) { return null; }
+  try {
+    var obj = JSON.parse(decodeURIComponent(escape(atob(code.slice(BACKUP_PREFIX.length)))));
+    if (!obj || typeof obj !== "object" || !Array.isArray(obj.tx)) { return null; }
+    return obj;
+  } catch (e) { return null; }
+}
+
+function askRestore() {
+  if (!parseBackup($("backupIn").value)) { $("restoreMsg").textContent = "That code doesn't look right. Copy it again from your other device."; return; }
+  $("restoreRow").hidden = true;
+  $("restoreConfirm").hidden = false;
+}
+
+function cancelRestore() { $("restoreRow").hidden = false; $("restoreConfirm").hidden = true; }
+
+function doRestore() {
+  var obj = parseBackup($("backupIn").value);
+  cancelRestore();
+  if (!obj) { return; }
+  var s = defaultState();
+  s.name = obj.name || "";
+  s.number = obj.number || "";
+  s.baseline = obj.baseline || null;
+  s.start = obj.start || "";
+  s.claimed = Array.isArray(obj.claimed) ? obj.claimed : [];
+  s.tx = Array.isArray(obj.tx) ? obj.tx : [];
+  s.rec = Array.isArray(obj.rec) ? obj.rec : [];
+  s.muted = !!obj.muted;
+  state = s;
+  saveState();
+  $("backupIn").value = "";
+  renderAll();
+  $("backupOut").value = makeBackup();
+  playChaChing();
+  showToast("Welcome back ✦", "Your overflow is here now.");
+}
+
+function confetti() {
+  if (reduceMotion) { return; }
+  var w = window.innerWidth;
+  var i;
+  for (i = 0; i < 140; i++) {
+    var c = el("span", "confetti");
+    var size = 6 + Math.random() * 7;
+    c.style.left = (Math.random() * w) + "px";
+    c.style.width = size + "px";
+    c.style.height = (size * (Math.random() < 0.5 ? 0.45 : 1)) + "px";
+    c.style.background = CONFETTI_COLORS[Math.floor(Math.random() * CONFETTI_COLORS.length)];
+    if (Math.random() < 0.3) { c.style.borderRadius = "50%"; }
+    c.style.setProperty("--drift", ((Math.random() - 0.5) * 240) + "px");
+    c.style.setProperty("--spin", ((Math.random() - 0.5) * 1440) + "deg");
+    var dur = 2.4 + Math.random() * 1.8;
+    c.style.animationDuration = dur + "s";
+    c.style.animationDelay = (Math.random() * 0.6) + "s";
+    document.body.appendChild(c);
+    window.setTimeout(removeNode, (dur + 0.8) * 1000, c);
+  }
+}
+
+function onKeyGlobal(e) {
+  if (e.key === "Escape" && !$("retVeil").hidden) { closeReturn(); }
+  else if (e.key === "Escape" && !$("celVeil").hidden) { closeCelebrate(); }
+}
+
+function renderTx() {
+  var list = $("txList");
+  clear(list);
+  $("stmtTitle").textContent = "Day " + selectedDay;
+  var items = state.tx.filter(isSelectedDay).sort(sortTx);
+  if (!items.length) {
+    list.appendChild(el("li", "empty", "Nothing here yet. Receive your Day " + selectedDay + " deposit to begin."));
+    $("moreRow").hidden = true;
+    return;
+  }
+  var limit = showAll ? items.length : Math.min(items.length, SHOW_LIMIT);
+  var i;
+  for (i = 0; i < limit; i++) { list.appendChild(txRow(items[i])); }
+  $("moreRow").hidden = showAll || items.length <= SHOW_LIMIT;
+}
+
+function sortTx(a, b) { return b.ts - a.ts; }
+
+function isSelectedDay(t) { return t.day === selectedDay; }
+
+function txRow(t) {
+  var isIn = t.type === "deposit";
+  var li = el("li", "tx " + (isIn ? "in" : "out"));
+  li.appendChild(el("div", "ic", isIn ? "✦" : "♡"));
+  var mid = el("div");
+  mid.appendChild(el("div", "d", t.desc));
+  mid.appendChild(el("div", "m", isIn ? "From: The Universe" : t.cat));
+  li.appendChild(mid);
+  li.appendChild(el("div", "a", (isIn ? "+" : "−") + money.format(t.amount)));
+  if (!isIn) {
+    var del = el("button", "del" + (confirmingDelete === t.id ? " confirming" : ""), confirmingDelete === t.id ? "Remove?" : "×");
+    del.type = "button";
+    del.setAttribute("data-id", t.id);
+    del.setAttribute("aria-label", confirmingDelete === t.id ? "Confirm remove " + t.desc : "Remove " + t.desc);
+    li.appendChild(del);
+  } else {
+    li.appendChild(el("span"));
+  }
+  return li;
+}
+
+function onListClick(e) {
+  var btn = e.target.closest ? e.target.closest(".del") : null;
+  if (!btn) { return; }
+  var id = btn.getAttribute("data-id");
+  if (confirmingDelete === id) {
+    state.tx = state.tx.filter(notId);
+    confirmingDelete = null;
+    saveState();
+    renderAccount();
+  } else {
+    confirmingDelete = id;
+    renderTx();
+  }
+}
+
+function notId(t) { return t.id !== confirmingDelete; }
+
+function onMore() { showAll = true; renderTx(); }
+
+/* ---------- Mute and reset ---------- */
+function renderMute() {
+  $("muteBtn").textContent = state.muted ? "🔇 Sound is off. Tap to turn on" : "🔊 Sound on. Turn it up!";
+  $("muteBtn").setAttribute("aria-pressed", state.muted ? "true" : "false");
+}
+
+function toggleMute() {
+  state.muted = !state.muted;
+  saveState();
+  renderMute();
+  if (!state.muted) { playCoin(); }
+}
+
+function askReset() { $("resetBtn").hidden = true; $("resetConfirm").hidden = false; }
+function cancelReset() { $("resetBtn").hidden = false; $("resetConfirm").hidden = true; }
+
+function doReset() {
+  var keepMute = state.muted;
+  state = defaultState();
+  state.muted = keepMute;
+  saveState();
+  cancelReset();
+  renderAll();
+  showToast("Fresh start ✦", "Everything on this device is cleared.");
+}
+
+/* ---------- Receiving Log ---------- */
+var confirmingRec = null;
+var lastRecId = null;
+var GEMS = {
+  "Money": ["#fff1b8", "#e6bf5c", "#8f6a1f"],
+  "Client payment": ["#c9ffe9", "#3fbf8f", "#1d6b4d"],
+  "Gift": ["#ffd1e6", "#e2589c", "#8a2457"],
+  "Discount or deal": ["#eadcff", "#9a72d6", "#4e2f80"],
+  "Something free": ["#d8fbff", "#5fc9da", "#21707c"],
+  "Refund": ["#d9e4ff", "#5b7fe0", "#253f8a"],
+  "Opportunity": ["#ffffff", "#e9e4f5", "#9d93b8"],
+  "Something else": ["#f3eaff", "#cdb6ee", "#7d64a3"]
+};
+var JAR_W = 226;
+var JAR_PER_ROW = 8;
+var JAR_ROWS = 15;
+
+function gemStyle(node, type) {
+  var c = GEMS[type] || GEMS["Something else"];
+  node.style.background = "linear-gradient(135deg, " + c[0] + " 0%, " + c[1] + " 55%, " + c[2] + " 100%)";
+}
+
+function renderJar() {
+  var jar = $("jar");
+  var wrap = $("jarWrap");
+  clear(jar);
+  var old = wrap.querySelectorAll(".gem.spill");
+  var k;
+  for (k = 0; k < old.length; k++) { removeNode(old[k]); }
+  var items = state.rec.slice().sort(sortRecAsc);
+  var cap = JAR_PER_ROW * JAR_ROWS;
+  var i;
+  for (i = 0; i < items.length; i++) {
+    var g = el("span", "gem");
+    gemStyle(g, items[i].type);
+    var seed = hashNum(items[i].id);
+    if (i < cap) {
+      var row = Math.floor(i / JAR_PER_ROW);
+      var col = i % JAR_PER_ROW;
+      var off = (row % 2) * 10;
+      g.style.left = (16 + col * 23 + off + (seed % 5) - 2) + "px";
+      g.style.bottom = (10 + row * 17 + (seed % 4)) + "px";
+      jar.appendChild(g);
+    } else {
+      var n = i - cap;
+      var side = n % 2 === 0 ? -1 : 1;
+      var step = Math.floor(n / 2);
+      g.classList.add("spill");
+      g.style.left = (JAR_W / 2 + side * (125 + (step % 4) * 20) + (seed % 7) - 9) + "px";
+      g.style.bottom = (2 + Math.floor(step / 4) * 15) + "px";
+      wrap.appendChild(g);
+    }
+    if (items[i].id === lastRecId) { g.classList.add("drop"); }
+  }
+  lastRecId = null;
+  var n = items.length;
+  if (n === 0) { $("jarTitle").textContent = "Every gem is something you received."; }
+  else if (n < cap) { $("jarTitle").textContent = n + (n === 1 ? " gem" : " gems") + " in your jar and counting."; }
+  else { $("jarTitle").textContent = "Your jar is overflowing! " + n + " gems."; }
+}
+
+function hashNum(s) {
+  var x = 0;
+  var i;
+  for (i = 0; i < s.length; i++) { x = (x * 31 + s.charCodeAt(i)) % 9973; }
+  return x;
+}
+
+function sortRecAsc(a, b) { return a.ts - b.ts; }
+
+function renderLegend() {
+  var ul = $("gemLegend");
+  clear(ul);
+  var key;
+  for (key in GEMS) {
+    if (Object.prototype.hasOwnProperty.call(GEMS, key)) {
+      var li = el("li");
+      var g = el("span", "gem");
+      gemStyle(g, key);
+      li.appendChild(g);
+      li.appendChild(el("span", null, key));
+      ul.appendChild(li);
+    }
+  }
+}
+var REC_LINES = [
+  "Thank you! More is on its way.",
+  "Look at you, receiving.",
+  "Money finds you everywhere.",
+  "Noticed and received. Keep it coming.",
+  "That's overflow, right there."
+];
+
+function logReceived() {
+  var desc = $("recDesc").value.trim();
+  var amt = parseFloat($("recAmt").value);
+  var msg = $("recMsg");
+  if (!desc) { msg.textContent = "Tell me what came in first."; $("recDesc").focus(); return; }
+  if (isNaN(amt) || amt < 0) { amt = 0; }
+  amt = Math.round(amt * 100) / 100;
+  lastRecId = "r" + Date.now();
+  state.rec.push({ id: lastRecId, desc: desc, amount: amt, type: $("recType").value, ts: Date.now() });
+  saveState();
+  $("recDesc").value = "";
+  $("recAmt").value = "";
+  msg.textContent = "";
+  playChaChing();
+  renderLog();
+  $("jarWrap").scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "center" });
+  showToast(amt > 0 ? "+" + money.format(amt) + " received ✦" : "Received ✦", REC_LINES[Math.floor(Math.random() * REC_LINES.length)]);
+}
+
+function weekStart() {
+  var now = midnight(new Date());
+  var back = (now.getDay() + 6) % 7;
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate() - back).getTime();
+}
+
+function sortRec(a, b) { return b.ts - a.ts; }
+
+function renderLog() {
+  var total = 0;
+  var week = 0;
+  var ws = weekStart();
+  var i;
+  for (i = 0; i < state.rec.length; i++) {
+    total += state.rec[i].amount;
+    if (state.rec[i].ts >= ws) { week += state.rec[i].amount; }
+  }
+  $("recTotal").textContent = money.format(total);
+  $("recCount").textContent = String(state.rec.length);
+  $("recWeek").textContent = money.format(week);
+  renderJar();
+  var list = $("recList");
+  clear(list);
+  var items = state.rec.slice().sort(sortRec);
+  if (!items.length) {
+    list.appendChild(el("li", "empty", "Your first entry is on its way. Start noticing."));
+    return;
+  }
+  for (i = 0; i < items.length; i++) { list.appendChild(recRow(items[i])); }
+}
+
+function recRow(t) {
+  var li = el("li", "tx in");
+  li.appendChild(el("div", "ic", "✦"));
+  var mid = el("div");
+  mid.appendChild(el("div", "d", t.desc));
+  mid.appendChild(el("div", "m", new Date(t.ts).toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " · " + t.type));
+  li.appendChild(mid);
+  li.appendChild(el("div", "a", t.amount > 0 ? "+" + money.format(t.amount) : "✦"));
+  var del = el("button", "del" + (confirmingRec === t.id ? " confirming" : ""), confirmingRec === t.id ? "Remove?" : "×");
+  del.type = "button";
+  del.setAttribute("data-id", t.id);
+  del.setAttribute("aria-label", "Remove " + t.desc);
+  li.appendChild(del);
+  return li;
+}
+
+function notRec(t) { return t.id !== confirmingRec; }
+
+function onRecListClick(e) {
+  var btn = e.target.closest ? e.target.closest(".del") : null;
+  if (!btn) { return; }
+  var id = btn.getAttribute("data-id");
+  if (confirmingRec === id) {
+    state.rec = state.rec.filter(notRec);
+    confirmingRec = null;
+    saveState();
+  } else {
+    confirmingRec = id;
+  }
+  renderLog();
+}
+
+function onRecKey(e) { if (e.key === "Enter") { e.preventDefault(); logReceived(); } }
+
+function renderAll() {
+  renderLegend();
+  renderLog();
+  renderDetails();
+  renderBaseline();
+  renderAccount();
+  renderMute();
+}
+
+function init() {
+  try { reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches; } catch (e) { reduceMotion = false; }
+  var tabs = document.querySelectorAll(".tab");
+  var i;
+  for (i = 0; i < tabs.length; i++) { tabs[i].addEventListener("click", onTabClick); }
+  window.addEventListener("hashchange", onHash);
+  $("goAccount").addEventListener("click", goAccount);
+  $("inNumber").addEventListener("input", updateZeros);
+  $("saveDetails").addEventListener("click", saveDetails);
+  $("inFeel").addEventListener("input", onFeel);
+  $("sealBtn").addEventListener("click", askSeal);
+  $("sealNo").addEventListener("click", cancelSeal);
+  $("sealYes").addEventListener("click", doSeal);
+  $("claimBtn").addEventListener("click", claimDeposits);
+  $("spendBtn").addEventListener("click", spend);
+  $("spendAllBtn").addEventListener("click", fillAll);
+  $("txList").addEventListener("click", onListClick);
+  $("recBtn").addEventListener("click", logReceived);
+  $("celDone").addEventListener("click", closeCelebrate);
+  $("celCopy").addEventListener("click", copyMantra);
+  $("moveBtn").addEventListener("click", toggleMove);
+  $("copyBackup").addEventListener("click", copyBackup);
+  $("restoreBtn").addEventListener("click", askRestore);
+  $("restoreNo").addEventListener("click", cancelRestore);
+  $("restoreYes").addEventListener("click", doRestore);
+  $("recList").addEventListener("click", onRecListClick);
+  $("recDesc").addEventListener("keydown", onRecKey);
+  $("recAmt").addEventListener("keydown", onRecKey);
+  $("moreBtn").addEventListener("click", onMore);
+  $("retBtn").addEventListener("click", closeReturn);
+  document.addEventListener("keydown", onKeyGlobal);
+  $("muteBtn").addEventListener("click", toggleMute);
+  $("resetBtn").addEventListener("click", askReset);
+  $("resetNo").addEventListener("click", cancelReset);
+  $("resetYes").addEventListener("click", doReset);
+  $("spendAmt").addEventListener("keydown", onSpendKey);
+  $("spendAmt").addEventListener("input", updateLeftHint);
+  $("spendDesc").addEventListener("keydown", onSpendKey);
+  renderAll();
+  onHash();
+  initDust();
+}
+
+var FEEL_LINES = [
+  "",
+  "Money feels tight and scary right now.",
+  "I worry about money most days.",
+  "I'm getting by, but there's a lot of stress around money.",
+  "I'm okay, but I hold my breath when I check my account.",
+  "Some days I feel abundant, and some days I don't.",
+  "I feel mostly okay with money, with a few worries.",
+  "I feel good about money most of the time.",
+  "I feel abundant and I trust more is coming.",
+  "I feel wealthy and relaxed around money.",
+  "I feel completely wealthy, safe and in overflow."
+];
+
+function onFeel() {
+  var v = parseInt($("inFeel").value, 10);
+  $("feelOut").textContent = String(v);
+  $("feelLine").textContent = FEEL_LINES[v] || "";
+}
+
+function onSpendKey(e) { if (e.key === "Enter") { e.preventDefault(); spend(); } }
+
+init();
+</script>
+</body>
+</html>
